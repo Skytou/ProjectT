@@ -9,6 +9,10 @@ local scene 		= composer.newScene()
  
 local GameCentre 	= require("GameCentre")
 local physics 		= require("physics")
+physics.start()
+physics.setContinuous( false )
+physics.setGravity( 0,9.8 )
+physics.setDrawMode( "normal" )
  
  
 
@@ -23,8 +27,8 @@ local StatusMessageY 			= 120	-- pos y for log message
 local holding 					= false
 local isCollided				= false
  
- physics.start(); physics.pause()
- physics.setDrawMode( "normal" )
+local bodies = {}
+local bodiesGroup
 
 local function createStatusMessage( message, x, y )
 	-- Show text, using default bold font of device (Helvetica on iPhone)
@@ -52,10 +56,12 @@ function scene:create( event )
 	-- e.g. add display objects to 'sceneGroup', add touch listeners, etc.
 
 	local sceneGroup 	= self.view
-	local background 	= display.newRect( 0, 0, screenW, screenH ) -- create a grey rectangle as the backdrop
-	background.anchorX 	= 0
-	background.anchorY 	= 0
-	background:setFillColor( .5 )
+	-- local background 	= display.newRect( 0, 0, screenW, screenH ) -- create a grey rectangle as the backdrop
+	-- background.anchorX 	= 0
+	-- background.anchorY 	= 0
+	-- background:setFillColor( .5 )
+	bodiesGroup = display.newGroup()
+	sceneGroup:insert( bodiesGroup )
 	
 	-- local crate = display.newImageRect( "crate.png", 90, 90 )
 	-- crate.x, crate.y = 160, 100
@@ -65,34 +71,38 @@ function scene:create( event )
 	-- crate2.x, crate2.y = 160, 300
 	-- physics.addBody( crate2, "static",{ density=1.0, friction=0.3, bounce=0.3 } )
 	 
-	 local needle = display.newRect( 100, 100, 10, 150 )
+	local needle = display.newRect(bodiesGroup, display.contentCenterX, display.contentCenterY-200, 10, 150 )
 	needle.anchorY = 0
-	needle.rotation = 50
+	needle.rotation = 0
 	needle.name ="needle"
-	physics.addBody(needle, "static", {bounce = 0, friction = 0.1} )
+	physics.addBody(needle, "static", {bounce = 0} )
+	bodies[#bodies+1] = needle
+	isSensor = true
+
+	local stick = display.newRect(bodiesGroup, needle.x, needle.y,20, 20 )
+	physics.addBody(stick, "dynamic", {bounce = 0} )
+	stick.isFixedRotation = true
+	stick.name ="stick"
+	stick.x = needle.x
+	stick.y = needle.y+150
+	stick.rotation =0
+	bodies[#bodies+1] = stick
+	isSensor = true
+
+	
+	stick:toBack( )
+	needle:toBack( )
+	
+local joint = physics.newJoint( "distance", needle, stick, needle.x, needle.y+150, stick.x, stick.y )
+	--local weldJoint = physics.newJoint( "distance", needle, stick, needle.x, needle.y+150 ) 
 
 	local function moveNeedle()
-	    transition.to( needle, { tag="moveNeedle", time=1000, rotation=-50, transition=easing.inSine } )
-	    transition.to( needle, { tag="moveNeedle", delay=1000, time=1000, rotation=50, transition = easing.inSine } )
+
+	    transition.to( needle, { tag="moveNeedle", time=1000, rotation=50, transition=easing.inSine } )
+	    transition.to( needle, { tag="moveNeedle", delay=1000, time=1000, rotation=-50, transition = easing.inSine } )
+
 	end
-
-local function moveCircle()
-	--physics.addBody(circle, "static", {bounce=0.1})
-	-- local t = cicle.object
-	-- local parent = t.parent
-	-- parent:insert( t )
-	-- display.getCurrentStage():setFocus( t, event.id )
-	-- t.bodyType = "kinematic"
-	-- t:setLinearVelocity( 0, 0 ) -- Stop the body's motion x and y
-	-- t.angularVelocity = 0 -- Stop the body's rotation
-
-	-- t.isFocus = true
-	-- t.x0 = event.x - t.x
-	-- t.y0 = event.y - t.y
-
-	    -- transition.to( circle, { tag="moveCircle", time=1000, rotation=-50, transition=easing.inSine } )
-	    -- transition.to( circle, { tag="moveCircle", delay=1000, time=1000, rotation=50, transition = easing.inSine } )
-	end
+ 
 
 timer.performWithDelay( 2000, moveNeedle, 0 )
 moveNeedle()
@@ -102,8 +112,10 @@ circle.x = 150
 circle.y = 290
 circle.name ="circle"
 
-physics.addBody(circle, "dynamic", {bounce=0.1})
+physics.addBody(circle, "dynamic", {bounce=0})
+isSensor = true
 
+ 
 local floor = display.newRect(0, 0, 480, 1)
 floor.x = _W
 floor.y = 320
@@ -111,24 +123,32 @@ physics.addBody(floor, "static", {bounce = 0, friction = 0.1} )
 floor.isVisible = true
 
 local function circle_jump(event)
-	if(isCollided == false) then
+	--if(isCollided == false) then
 
-		if(event.phase == "ended" and jump_completed == false)then
+		if(event.phase == "ended" )then
 
-		jump_completed = true
-		circle:setLinearVelocity(-100, -250)
+		--jump_completed = true
+			--circle:removeEventListener( "collision",self) ; self.collision = nil
+			circle:setLinearVelocity(0, -250)
 		end
-	end
+	--end
 end
 
 local function on_hit(event)
-if(event.phase == "began")then
+if(event.phase == "ended")then
 	-- print( event.target.name )       --the first object in the collision
  --    print( event.other.name )       --the second object in the collision
-   if(event.other.name =="needle") then
+   if(event.other.name =="stick") then
    	print ("wow")
-   	isCollided =true
-   	afterCollision()
+
+   	--afterCollision()
+   	--timer.performWithDelay( 100, afterCollision )
+	
+   --  isCollided =true
+   --  circle.bodyType ="kinematic"
+  	-- circle:setLinearVelocity(0, 0)
+   -- local joint = physics.newJoint( "distance", needle, circle, needle.x, needle.y-10, needle.x, needle.y )
+   --	afterCollision()
    	--moveCircle()
 
    end
@@ -136,26 +156,35 @@ if(event.phase == "began")then
 
 end
 end
+-- local weldJoint = physics.newJoint( "weld", circle, needle, needle.x, needle.y )
 
-local function afterCollision( )
+local function afterCollision( event)
 	-- body
-	if(isCollided) then
-		print("w")
-		display.getCurrentStage():setFocus(circle)
-		circle.bodyType ="kinematic"
-   		circle:setLinearVelocity(0, 0)
-   	 	circle.x = needle.x
-   	 	circle.y = needle.y
-	end
+	if(event.phase == "began")then
+	-- print( event.target.name )       --the first object in the collision
+ --    print( event.other.name )       --the second object in the collision
+   if(event.other.name =="stick") then
+   	print ("wow")
+	 print("inside")
+	 print( "position: " .. event.x .. "," .. event.y ..", ".."other pos"..event.other.x..","..event.other.y )
+	-- circle:removeEventListener( "collision",afterCollision) 
+ --   	circle.x = stick.x
+	-- circle.y = stick.y
+	 
+ 	end
+
+ end
+
 end
 
 
 
+print(stick.x, stick.y)
 
 Runtime:addEventListener("touch", circle_jump)
-circle:addEventListener("collision", on_hit)
+--circle:addEventListener("collision", on_hit)
 
- 
+ circle:addEventListener( "collision", afterCollision )
 
 	  -- local touchJoint = physics.newJoint( "touch", crate2, 100, 100 )
 	  -- touchJoint:setTarget( 100, 100 )
@@ -231,7 +260,7 @@ circle:addEventListener("collision", on_hit)
 
 	-- secondButton:addEventListener( "touch", onButtonTouch )
 	 
-	sceneGroup:insert( background )
+	--sceneGroup:insert( background )
 	-- sceneGroup:insert( firstButton )
 	-- sceneGroup:insert( secondButton )
 	-- sceneGroup:insert( crate )
@@ -252,7 +281,9 @@ function scene:show( event )
 		-- 
 		-- INSERT code here to make the scene come alive
 		-- e.g. start timers, begin animation, play audio, etc.
+
 		physics.start()
+		physics.setDrawMode( "hybrid" )
 		  
 	end
 end
