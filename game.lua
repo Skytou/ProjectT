@@ -25,7 +25,7 @@ local centerY 					= display.contentCenterY
 local StatusMessageY 			= 120	-- pos y for log message
 
 local holding 					= false
-local isCollided				= false
+local isCollided				= true
  
 local bodies = {}
 local bodiesGroup
@@ -94,6 +94,7 @@ function scene:create( event )
 	needle:toBack( )
 	
 local joint = physics.newJoint( "distance", needle, stick, needle.x, needle.y+150, stick.x, stick.y )
+
 	--local weldJoint = physics.newJoint( "distance", needle, stick, needle.x, needle.y+150 ) 
 
 	local function moveNeedle()
@@ -105,14 +106,16 @@ local joint = physics.newJoint( "distance", needle, stick, needle.x, needle.y+15
  
 
 timer.performWithDelay( 2000, moveNeedle, 0 )
-moveNeedle()
+--moveNeedle()
 
 local circle = display.newCircle(0, 0, 20)
 circle.x = 150
 circle.y = 290
 circle.name ="circle"
 
-physics.addBody(circle, "dynamic", {bounce=0})
+
+physics.addBody(circle, "static", {bounce=0})
+
 isSensor = true
 
  
@@ -122,6 +125,33 @@ floor.y = 320
 physics.addBody(floor, "static", {bounce = 0, friction = 0.1} )
 floor.isVisible = true
 
+ 
+local function jumpCircle()
+ 	   print("jumping")
+ 	    transition.moveTo( circle, {  x=circle.x+100, y=circle.y-100, transition=easing.inSine,
+ 	    	onComplete=  OnJumpReached
+
+		 
+
+
+ 	    	 } )
+	end
+
+  OnJumpReached = function(obj)
+   
+if(isCollided ==false) then
+	print("reached height")
+	transition.moveTo( circle, {  y=circle.y+100, transition=easing.inSine } )
+end
+
+	
+end
+
+-- local OnJumpReached = function( obj )
+	
+-- 	--transition.to( circle, {time=500,  y=circle.y-100, transition=easing.inSine } )
+-- end
+
 local function circle_jump(event)
 	--if(isCollided == false) then
 
@@ -129,34 +159,82 @@ local function circle_jump(event)
 
 		--jump_completed = true
 			--circle:removeEventListener( "collision",self) ; self.collision = nil
-			circle:setLinearVelocity(0, -250)
+			--circle:setLinearVelocity(0, -250)
+			 
+			jumpCircle()
+--
+			 
+			 
 		end
 	--end
 end
 
 local function on_hit(event)
-if(event.phase == "ended")then
-	-- print( event.target.name )       --the first object in the collision
- --    print( event.other.name )       --the second object in the collision
-   if(event.other.name =="stick") then
-   	print ("wow")
 
-   	--afterCollision()
-   	--timer.performWithDelay( 100, afterCollision )
-	
-   --  isCollided =true
-   --  circle.bodyType ="kinematic"
-  	-- circle:setLinearVelocity(0, 0)
-   -- local joint = physics.newJoint( "distance", needle, circle, needle.x, needle.y-10, needle.x, needle.y )
-   --	afterCollision()
-   	--moveCircle()
 
-   end
-	jump_completed = false
 
+	if(event.phase == "ended")then
+		-- print( event.target.name )       --the first object in the collision
+	 --    print( event.other.name )       --the second object in the collision
+	   if(event.other.name =="stick") then
+	   	print ("is collided with stick")
+
+	   		
+		isCollided = true
+	    
+	  
+	  
+	   	  timer.performWithDelay( 500, listener )
+		
+	   --  isCollided =true
+	   --  circle.bodyType ="kinematic"
+	  	-- circle:setLinearVelocity(0, 0)
+	     --local joint = physics.newJoint( "distance", needle, circle, needle.x, needle.y-10, needle.x, needle.y )
+	   --	afterCollision()
+	   	--moveCircle()
+
+	   end
+		 
+	end
 end
+
+listener = {}
+function listener:timer( event )
+	if(isCollided==true) then
+ 	print( "listener called" )
+ 	circle.bodyType = "dynamic"
+ 	circle.isFixedRotation = true
+	 
+	circle.x = needle.x
+	circle.y = needle.y+150
+	circle.rotation =0
+ 	 bodies[#bodies+1] = circle
+ 	  circle:toBack( )
+
+ 	  local joint =  physics.newJoint( "distance", needle, circle, needle.x, needle.y+150, circle.x, circle.y )
+ 	   circle:removeEventListener("collision", on_hit)
+ 	   -- physics.newJoint( "distance", needle, stick, needle.x, needle.y+150, stick.x, stick.y )
+ 	 -- weldJoint = physics.newJoint( "weld", circle, stick, stick.x, stick.y )
+  --
+
+ 
+   
+   
+    isCollided =false 
+   
+   
+	end
+    
 end
--- local weldJoint = physics.newJoint( "weld", circle, needle, needle.x, needle.y )
+
+ 
+ 
+ function moveCircle()
+
+	    transition.to( circle, { tag="moveCircle", time=1000,x= 300, rotation=50, transition=easing.inSine } )
+	    transition.to( circle, { tag="moveCircle", delay=1000, time=1000,x= -300, rotation=-50, transition = easing.inSine } )
+
+	end
 
 local function afterCollision( event)
 	-- body
@@ -167,6 +245,7 @@ local function afterCollision( event)
    	print ("wow")
 	 print("inside")
 	 print( "position: " .. event.x .. "," .. event.y ..", ".."other pos"..event.other.x..","..event.other.y )
+	 local joint = physics.newJoint( "distance", needle, circle, needle.x, needle.y-10, needle.x, needle.y )
 	-- circle:removeEventListener( "collision",afterCollision) 
  --   	circle.x = stick.x
 	-- circle.y = stick.y
@@ -180,11 +259,11 @@ end
 
 
 print(stick.x, stick.y)
-
+print(isCollided)
 Runtime:addEventListener("touch", circle_jump)
---circle:addEventListener("collision", on_hit)
+circle:addEventListener("collision", on_hit)
 
- circle:addEventListener( "collision", afterCollision )
+ --circle:addEventListener( "collision", afterCollision )
 
 	  -- local touchJoint = physics.newJoint( "touch", crate2, 100, 100 )
 	  -- touchJoint:setTarget( 100, 100 )

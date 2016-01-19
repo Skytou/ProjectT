@@ -22,9 +22,11 @@ local function onSystemEvent( event )
     end
 end
 
+
 Runtime:addEventListener( "system", onSystemEvent )
 
 -- load menu screen
+print("main.lua")
 composer.gotoScene( "game" ) -- change to menu
 
  
